@@ -308,3 +308,615 @@ speaker_note: |
 
 <!-- end_slide -->
 
+Chapter 3 — Functions
+===
+
+<!-- 
+speaker_note: |
+  This chapter is the heart of Clean Code. If you can write good functions, everything else becomes easier.
+  Functions are where logic lives — and they can either make a codebase joyful or painful to work in.
+  Let’s break down what makes a great function.
+-->
+
+<!-- end_slide -->
+
+Functions Should Be Small
+===
+
+- The first rule: **small**. The second rule: **smaller than that**.
+- Ideally: 1–5 lines.
+- Each function should do one thing — and do it well.
+
+```java
+// ❌ Too large
+public void processUserInput(String input) {
+    if (input != null && input.length() > 0) {
+        String[] parts = input.split(",");
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                saveToDatabase(part);
+            }
+        }
+    }
+}
+
+// ✅ Split into small, clear steps
+public void processUserInput(String input) {
+    if (isValid(input)) {
+        for (String part : parse(input)) {
+            save(part);
+        }
+    }
+}
+```
+
+<!-- 
+speaker_note: |
+  Small functions are easier to test, easier to read, and easier to reuse.
+  The second version shows how we can name the steps, making the logic clear — even if we don't see the details of each helper method.
+-->
+
+<!-- end_slide -->
+
+Do One Thing
+===
+
+- Every function should do exactly **one thing**.
+- If it does more than one thing — extract the second thing into its own function.
+- "One thing" means one **responsibility**, not one line of code.
+
+```java
+// ❌ Does multiple things
+public void saveUserData(User user) {
+    validate(user);
+    log(user);
+    repository.save(user);
+}
+
+// ✅ Do one thing each
+public void saveUserData(User user) {
+    validate(user);
+    save(user);
+}
+```
+
+<!-- 
+speaker_note: |
+  The idea of "one thing" is about conceptual integrity.
+  If your function validates, logs, and saves — it’s doing at least three things.
+  Extracting those steps improves testability and reuse.
+-->
+
+<!-- end_slide -->
+
+Use Descriptive Names
+===
+
+- Name functions for **what they do**, not how they do it.
+- Prefer verbs: `calculateTotal()`, `renderReport()`, `validateInput()`
+- Avoid vague names: `handle()`, `process()`, `manage()`
+
+```java
+// ❌ Vague
+handle(customer);
+
+// ✅ Clear
+sendInvoiceTo(customer);
+```
+
+<!-- 
+speaker_note: |
+  If your function name is ambiguous, the reader has to dig into the body to understand it.
+  Let the name do the heavy lifting — it should describe the intention, not the mechanics.
+-->
+
+<!-- end_slide -->
+
+Function Arguments
+===
+
+- Fewer is better:
+  - ✅ 0–2 is ideal
+  - ⚠️ 3 is questionable
+  - 🚫 4+ is a code smell
+- Use objects instead of multiple primitive arguments.
+
+```java
+// ❌ Too many primitives
+scheduleMeeting("Team Sync", 30, "Zoom", true);
+
+// ✅ Use a parameter object
+scheduleMeeting(new Meeting("Team Sync", 30, "Zoom", true));
+```
+
+<!-- 
+speaker_note: |
+  Arguments make functions harder to understand and test.
+  Wrapping multiple related arguments into an object gives them meaning and reduces cognitive load.
+-->
+
+<!-- end_slide -->
+
+Avoid Output Arguments
+===
+
+- Prefer return values over modifying passed-in parameters.
+- Output arguments hide side effects and make testing harder.
+
+```java
+// ❌ Modifies the argument
+void fillList(List<String> list) {
+    list.add("item1");
+    list.add("item2");
+}
+
+// ✅ Returns the result
+List<String> getList() {
+    return List.of("item1", "item2");
+}
+```
+
+<!-- 
+speaker_note: |
+  Output arguments break the principle of least surprise.
+  Instead of asking the function to fill something, just let it return a result. That makes data flow explicit.
+-->
+
+<!-- end_slide -->
+
+No Side Effects
+===
+
+- A function should do what it says — and **only** what it says.
+- Side effects create hidden complexity and bugs.
+
+```java
+// ❌ Implicit side effect: caching
+public String getUser(String id) {
+    if (!cache.contains(id)) {
+        cache.put(id, db.fetch(id));
+    }
+    return cache.get(id);
+}
+
+// ✅ Separate the concerns
+public String getUser(String id) {
+    return db.fetch(id);
+}
+```
+
+<!-- 
+speaker_note: |
+  Side effects are things the function does that the name doesn't suggest.
+  Caching, logging, saving — these should be isolated. Don’t surprise your callers.
+-->
+
+<!-- end_slide -->
+
+Use Exceptions, Not Error Codes
+===
+
+- Return codes require condition checking everywhere.
+- Exceptions separate error-handling logic from main logic.
+
+```java
+// ❌ Error code
+if (deleteUser(user) == ERROR_NOT_FOUND) {
+    // handle error
+}
+
+// ✅ Exception
+try {
+    deleteUser(user);
+} catch (UserNotFoundException e) {
+    // handle error
+}
+```
+
+<!-- 
+speaker_note: |
+  Error codes pollute your main logic with repetitive checking.
+  Exceptions let you focus on the happy path and handle errors when needed.
+-->
+
+<!-- end_slide -->
+
+Functions Should Read Top-Down
+===
+
+- Call high-level functions first, then details below.
+- Let the function tell a **story** from beginning to end.
+
+```java
+public void processOrder(Order order) {
+    validate(order);
+    calculateTotals(order);
+    charge(order);
+    sendConfirmation(order);
+}
+```
+
+<!-- 
+speaker_note: |
+  Reading a function should feel like reading a paragraph — clear, logical, and linear.
+  Details can be broken into well-named helpers, shown below the high-level narrative.
+-->
+
+<!-- end_slide -->
+
+DRY and Reuse Helpers
+===
+
+- Don’t repeat logic — extract shared steps.
+- Even small, obvious logic can be extracted for clarity.
+
+```java
+// ❌ Repeated parsing
+if (value.trim().equals("")) ...
+if (value.trim().length() < 3) ...
+
+// ✅ Helper method
+if (isEmpty(value)) ...
+```
+
+<!-- 
+speaker_note: |
+  Don’t copy-paste the same logic in multiple places.
+  Extract and name it — even if it's just trimming and checking length.
+  That makes it easier to update later and improves readability now.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Functions are the **core building blocks** of clean code.
+- Keep them **small**, **focused**, and **descriptive**.
+- Minimize arguments, avoid side effects, and write for readability.
+
+<!-- 
+speaker_note: |
+  Clean functions = clean code.
+  The principles here — small size, clear naming, one responsibility — have a ripple effect across your codebase.
+  Next up: how to write meaningful comments — when you actually need them.
+-->
+<!-- end_slide -->
+
+Chapter 4 — Comments
+===
+
+<!-- 
+speaker_note: |
+  Chapter 4 is about comments — when they help, when they hurt, and why less is usually more.
+  Uncle Bob isn’t anti-comment. He’s just pro-clarity. And often, comments are a sign that the code itself isn’t clear.
+-->
+
+<!-- end_slide -->
+
+The Purpose of Comments
+===
+
+- Comments should **compensate for failure to express intent in code**.
+- They are **not a substitute** for clear naming or structure.
+- Good comments explain *why*, not *what*.
+
+<!-- 
+speaker_note: |
+  Think of comments as a bandage — not a cure.
+  If your code isn’t self-explanatory, a comment can help — but fixing the code is better.
+  Use comments when intent would be otherwise unclear, not to explain poor naming or long methods.
+-->
+
+<!-- end_slide -->
+
+Explain Why, Not What
+===
+
+- ❌ Don’t explain obvious code:
+```java
+// increment i by 1
+i++;
+```
+
+- ✅ Do explain *why* something is done:
+```java
+// Compensate for timezone offset
+adjustedTime = rawTime + offset;
+```
+
+<!-- 
+speaker_note: |
+  A comment that says "increment i by 1" is just noise.
+  But explaining the business reason for a calculation? That’s useful context.
+  Help readers understand the reasoning, not the mechanics.
+-->
+
+<!-- end_slide -->
+
+Clarify Intent When Code Can’t
+===
+
+- Use comments to document decisions that code alone can’t express:
+  - Regulatory requirements
+  - Performance hacks
+  - Workarounds for known bugs or issues
+
+```java
+// Required by EU regulation: must log all failed login attempts
+logFailure(user);
+```
+
+<!-- 
+speaker_note: |
+  Sometimes your code is doing something that seems odd — but it’s necessary.
+  In those cases, a quick comment explaining the reason can prevent someone from "cleaning it up" later and breaking a requirement.
+-->
+
+<!-- end_slide -->
+
+Avoid Redundant Comments
+===
+
+- ❌ Redundant:
+```java
+// Set name to "John"
+user.setName("John");
+```
+
+- ✅ Better: make the method name self-explanatory:
+```java
+user.setDefaultName();
+```
+
+<!-- 
+speaker_note: |
+  Redundant comments waste time and space. If your method or variable names are good, the comment shouldn’t be necessary.
+  In this case, the solution is better naming — not better commenting.
+-->
+
+<!-- end_slide -->
+
+Avoid Commented-Out Code
+===
+
+- ❌ Don’t leave dead code in comments:
+```java
+// old implementation
+// user.save(false);
+```
+
+- ✅ Use version control to track history.
+
+<!-- 
+speaker_note: |
+  Commented-out code adds clutter and confusion.
+  That’s what version control is for. If you need to restore something, use Git — not comment blocks.
+-->
+
+<!-- end_slide -->
+
+Use Legal and Informative Comments
+===
+
+- ✅ Legal/attribution comments (if required)
+- ✅ TODOs — when tracked and actionable
+- ✅ Explanatory comments for business rules, hacks, or gotchas
+
+```java
+// TODO: Remove this when legacy API is deprecated
+```
+
+<!-- 
+speaker_note: |
+  Not all comments are bad. Legal headers, TODOs, and necessary clarifications are fine.
+  Just make sure they’re actually helpful — and kept up to date.
+-->
+
+<!-- end_slide -->
+
+Use Javadoc — But Wisely
+===
+
+- ✅ Use Javadoc for public APIs
+- ❌ Don’t use it to explain obvious things
+- Keep it current — outdated Javadoc is worse than none
+
+```java
+/**
+ * Calculates tax for a given invoice.
+ * @param invoice the invoice to tax
+ * @return total tax owed
+ */
+```
+
+<!-- 
+speaker_note: |
+  Javadoc is helpful — especially for public interfaces. But keep it concise and current.
+  Outdated documentation misleads users and developers alike.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Comments are a fallback — not a first choice.
+- Clean code speaks for itself.
+- Use comments to add value — not to excuse unclear code.
+
+<!-- 
+speaker_note: |
+  A good developer minimizes the need for comments by writing expressive code.
+  But when comments are needed, use them with purpose — to share reasoning, requirements, or important caveats.
+  In the next chapter, we’ll look at formatting: how the structure of code affects its readability.
+-->
+
+<!-- end_slide -->
+
+Chapter 5 — Formatting
+===
+
+<!-- 
+speaker_note: |
+  Welcome to Chapter 5. Now that we’ve covered functions and comments, let’s talk about the shape of your code.
+  Formatting isn’t about style guides — it’s about communication. The way code is laid out should help readers understand it at a glance.
+-->
+
+<!-- end_slide -->
+
+The Purpose of Formatting
+===
+
+- Formatting creates visual structure.
+- It helps readers:
+  - Understand flow
+  - See relationships between code blocks
+  - Scan for relevant logic quickly
+- Consistent formatting means fewer distractions.
+
+<!-- 
+speaker_note: |
+  Formatting gives your code rhythm and structure.
+  Think of it like typesetting in a book — good formatting makes reading smooth, bad formatting makes it exhausting.
+-->
+
+<!-- end_slide -->
+
+Vertical Formatting — Top to Bottom
+===
+
+- Readers read code **top to bottom**.
+- Code should be ordered:
+  1. High-level concepts first
+  2. Details and helpers below
+- Related code should be close together.
+
+```java
+public class ReportGenerator {
+    public void generate() {
+        fetchData();
+        formatData();
+        exportData();
+    }
+
+    // helper methods
+    private void fetchData() {...}
+    private void formatData() {...}
+    private void exportData() {...}
+}
+```
+
+<!-- 
+speaker_note: |
+  Make your code flow like a story. Start with what matters most — then move into details.
+  If related code is scattered, it makes comprehension harder.
+-->
+
+<!-- end_slide -->
+
+Vertical Openness
+===
+
+- Use vertical space to separate distinct concepts.
+- Don’t cram multiple methods or blocks together.
+- Group lines that belong together, and separate unrelated ones.
+
+```java
+// Good vertical spacing
+validateInput(input);
+
+calculateResults(input);
+
+saveResults(results);
+```
+
+<!-- 
+speaker_note: |
+  Vertical openness is about giving the reader breathing room.
+  Too little spacing feels dense. Too much and you lose context. Strike a visual rhythm.
+-->
+
+<!-- end_slide -->
+
+Horizontal Formatting — Line Structure
+===
+
+- Lines should be short: ~80–120 characters max.
+- Break long statements into multiple lines.
+- Align parameters and chained method calls for clarity.
+
+```java
+// Better formatting for clarity
+Order order = new Order(
+    customerId,
+    itemList,
+    shippingAddress,
+    LocalDate.now()
+);
+```
+
+<!-- 
+speaker_note: |
+  Readers scan left to right. If your line runs off the screen, they lose context.
+  Break things up so the eye can rest and the brain can follow.
+-->
+
+<!-- end_slide -->
+
+Indentation and Nesting
+===
+
+- Each level of nesting = more mental overhead.
+- Avoid deeply nested structures.
+- Extract blocks into functions when nesting gets deep.
+
+```java
+// Refactor deeply nested logic
+if (user != null) {
+    if (user.isActive()) {
+        if (!user.isLocked()) {
+            grantAccess(user);
+        }
+    }
+}
+```
+
+<!-- 
+speaker_note: |
+  Deep nesting makes code harder to reason about.
+  Flatten your structure by returning early or moving logic into smaller, single-purpose functions.
+-->
+
+<!-- end_slide -->
+
+Team Conventions Matter
+===
+
+- Pick a consistent style — and stick with it.
+- Formatting differences should never be a source of conflict.
+- Use automated tools like `prettier`, `eslint`, or IDE settings to enforce standards.
+
+<!-- 
+speaker_note: |
+  The best formatting style is the one everyone agrees on and applies consistently.
+  Don’t waste time debating spaces vs. tabs — automate it and focus on substance.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Formatting is about **readability**, not personal taste.
+- Well-formatted code reads like well-written prose.
+- Respect the reader: structure your code so it tells a story.
+
+<!-- 
+speaker_note: |
+  Formatting is your first impression. It tells your teammates whether your code is thoughtful or careless.
+  Write for humans first — the compiler already understands it.
+  In the next chapter, we’ll tackle objects and data structures — and how to use them cleanly.
+-->
+
+<!-- end_slide -->
