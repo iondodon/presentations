@@ -1,4 +1,8 @@
 ---
+theme:
+  override:
+    footer:
+      style: progress_bar
 title: "**Clean Code**"
 sub_title: by Robert C. Martin (Summarized)
 ---
@@ -2431,6 +2435,654 @@ speaker_note: |
   Writing clean code isn’t a magical skill — it’s a habit.
   The more you refine, the cleaner your code becomes.
   And that’s what separates great developers from average ones.
+-->
+
+<!-- end_slide -->
+
+Chapter 15 — JUnit Internals
+===
+
+<!-- 
+speaker_note: |
+  Chapter 15 is a deep dive into the JUnit framework — specifically how to clean up its internals using the principles we've covered.
+  It’s a real-world example of applying clean code techniques to existing, messy code.
+-->
+
+<!-- end_slide -->
+
+What’s the Goal?
+===
+
+- Analyze JUnit’s core code for opportunities to improve
+- Apply:
+  - SRP
+  - Clean functions
+  - Expressive names
+  - Refactoring
+- Maintain the original behavior and tests
+
+<!-- 
+speaker_note: |
+  This isn't about rewriting JUnit from scratch — it's about improving the structure without changing what it does.
+  We'll treat the code as legacy: no big rewrites, just careful, progressive cleanups.
+-->
+
+<!-- end_slide -->
+
+The Starting Point: TestCase Class
+===
+
+- Original `TestCase` was large and confusing
+- Mixed responsibilities:
+  - Running tests
+  - Reporting results
+  - Managing reflection
+- Needed separation of concerns
+
+<!-- 
+speaker_note: |
+  The TestCase class did too much. It ran tests, tracked results, and handled low-level reflection.
+  We want to separate these roles so each class has a single, clear purpose.
+-->
+
+<!-- end_slide -->
+
+Extracting TestResult
+===
+
+- Created `TestResult` to handle result tracking
+- Responsibilities moved:
+  - Count runs and failures
+  - Collect error info
+- Result: TestCase became simpler and cleaner
+
+```java
+TestResult result = new TestResult();
+test.run(result);
+```
+
+<!-- 
+speaker_note: |
+  By moving result tracking out of TestCase, we clarified what TestCase is really about: running a test.
+  Now the result logic lives where it belongs — in a result object.
+-->
+
+<!-- end_slide -->
+
+Dealing with Reflection
+===
+
+- Original code used reflection directly in multiple places
+- Refactored into a single responsibility class/method
+
+```java
+// Extracted reflective invocation
+public class TestMethod {
+    public void invoke(Object instance) throws Exception {
+        method.invoke(instance);
+    }
+}
+```
+
+<!-- 
+speaker_note: |
+  Reflection is powerful but dangerous. Encapsulating it means fewer places for errors and clearer intent.
+  Now when reflection breaks, we know exactly where to look.
+-->
+
+<!-- end_slide -->
+
+Testing the Refactor
+===
+
+- Tests already existed — they gave safety
+- Made sure refactoring didn’t break behavior
+- Improved internal design **without changing external interface**
+
+<!-- 
+speaker_note: |
+  This is why we write tests in the first place — so we can refactor safely.
+  Even large internal changes were possible without risk, thanks to comprehensive tests.
+-->
+
+<!-- end_slide -->
+
+Lessons Learned
+===
+
+- Refactoring legacy code is possible — and powerful
+- Use:
+  - Small steps
+  - Tests as a safety net
+  - Core clean code principles
+- Clean code improves maintainability **even in old code**
+
+<!-- 
+speaker_note: |
+  This chapter shows that clean code isn’t just for greenfield projects.
+  Legacy code can be cleaned up, piece by piece — and the results are worth it.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- JUnit is a case study in progressive cleanup
+- Clean code works — even on systems you didn’t write
+- Start with tests, refactor carefully, and focus on clarity
+
+<!-- 
+speaker_note: |
+  JUnit’s internals prove that we can bring clarity to complex systems.
+  Start small, clean what you touch, and trust your tests to help you improve.
+  Next up: another hands-on case — cleaning up the SerialDate class.
+-->
+
+<!-- end_slide -->
+
+
+Chapter 16 — Refactoring SerialDate
+===
+
+<!-- 
+speaker_note: |
+  This chapter walks through a real-world cleanup of a problematic class: `SerialDate` from the JFreeChart project.
+  It’s a longer, more detailed case study showing what it takes to clean up legacy code step by step.
+-->
+
+<!-- end_slide -->
+
+The Problem with SerialDate
+===
+
+- Large, monolithic class (~2000 lines)
+- Violated SRP: handled too many responsibilities
+- Duplicated logic, unclear naming, tight coupling
+- No tests initially — refactoring was risky
+
+<!-- 
+speaker_note: |
+  SerialDate had become a dumping ground for all kinds of date-related logic.
+  Before any meaningful refactoring could happen, Uncle Bob had to introduce tests and understand what the code was doing.
+-->
+
+<!-- end_slide -->
+
+Step 1: Add Characterization Tests
+===
+
+- Tests were written **before** making changes
+- Ensured existing behavior stayed intact
+- Gave confidence to begin refactoring safely
+
+```java
+@Test
+public void testIsLeapYear() {
+    assertTrue(SerialDate.isLeapYear(2000));
+    assertFalse(SerialDate.isLeapYear(1900));
+}
+```
+
+<!-- 
+speaker_note: |
+  These are not unit tests — they’re characterization tests.
+  Their purpose is to freeze behavior, so we can refactor safely without changing results.
+-->
+
+<!-- end_slide -->
+
+Step 2: Identify Responsibilities
+===
+
+- `SerialDate` did too much:
+  - Calculating leap years
+  - Parsing dates
+  - Handling weekdays
+  - Managing date constants
+- Each area was a candidate for extraction
+
+<!-- 
+speaker_note: |
+  Once tests were in place, Uncle Bob analyzed the class.
+  He identified cohesive chunks of functionality that could be moved to their own classes.
+-->
+
+<!-- end_slide -->
+
+Step 3: Extract Classes and Methods
+===
+
+- Created small, focused helpers like:
+  - `DateParser`
+  - `LeapYearCalculator`
+  - `DayOfWeek`
+- Removed duplication and clarified responsibilities
+
+```java
+public class LeapYearCalculator {
+    public static boolean isLeapYear(int year) {
+        return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+    }
+}
+```
+
+<!-- 
+speaker_note: |
+  With clear, separate classes, each piece became easier to understand, test, and reuse.
+  The monolith was broken down into maintainable parts.
+-->
+
+<!-- end_slide -->
+
+Step 4: Refactor Interfaces and Enums
+===
+
+- Used enums instead of int constants
+- Simplified date logic with readable names
+
+```java
+public enum DayOfWeek {
+    MONDAY, TUESDAY, ..., SUNDAY;
+}
+```
+
+<!-- 
+speaker_note: |
+  Enums are safer and more expressive than constants.
+  Replacing magic numbers with well-named enums improved both readability and safety.
+-->
+
+<!-- end_slide -->
+
+Final Outcome
+===
+
+- Code was:
+  - Smaller
+  - More modular
+  - Easier to test
+  - Easier to read
+- Behavior was preserved thanks to initial tests
+
+<!-- 
+speaker_note: |
+  The transformation of SerialDate proves that even messy legacy code can be cleaned up — with patience, tests, and discipline.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Legacy code can be refactored safely
+- Start with tests, identify responsibilities, extract and simplify
+- Clean code emerges one step at a time
+
+<!-- 
+speaker_note: |
+  Don’t fear messy code — fear leaving it messy.
+  This chapter reminds us that clean code isn’t a luxury; it’s a responsibility we practice over time.
+  Next up: a giant list of practical tips — Smells and Heuristics.
+-->
+
+<!-- end_slide -->
+
+
+Chapter 17 — Smells and Heuristics
+===
+
+<!-- 
+speaker_note: |
+  The final chapter of Clean Code is a comprehensive list of code smells and heuristics.
+  Think of it as a checklist to help you recognize messy code and guide you toward cleaner practices.
+-->
+
+<!-- end_slide -->
+
+What Is a Code Smell?
+===
+
+- A **code smell** is a sign that something might be wrong
+- Doesn’t always mean the code is broken — just that it may need attention
+- Use smells as prompts for investigation and refactoring
+
+<!-- 
+speaker_note: |
+  A smell isn’t a bug. It’s a hint. Something in the code doesn’t feel right — maybe too complex, too coupled, or too clever.
+  Use these heuristics to keep your codebase healthy.
+-->
+
+<!-- end_slide -->
+
+Examples of Function Smells
+===
+
+- Too many arguments
+- Too long
+- Does more than one thing
+- Has side effects
+- Repeats logic from elsewhere
+
+```java
+// ❌ Bad
+public void process(String name, int age, boolean isAdmin, double balance, String region) {...}
+
+// ✅ Better
+public void process(UserProfile profile) {...}
+```
+
+<!-- 
+speaker_note: |
+  If a function is long or takes too many arguments, that’s a sign to break it up or introduce data structures.
+  Aim for simplicity, clarity, and focus.
+-->
+
+<!-- end_slide -->
+
+Naming and Clarity Heuristics
+===
+
+- Names should reveal intent
+- Avoid disinformation (e.g., misleading names)
+- No generic or vague names like `data`, `manager`, `handler`
+
+```java
+// ❌ Unclear
+calculate(x);
+
+// ✅ Clear
+calculateTax(subtotal);
+```
+
+<!-- 
+speaker_note: |
+  If you have to guess what a name means, it’s a bad name.
+  Express intent clearly through precise, descriptive names.
+-->
+
+<!-- end_slide -->
+
+Comment Smells
+===
+
+- Redundant or outdated comments
+- Comments that explain *what* instead of *why*
+- Commented-out code (should be deleted)
+
+```java
+// ❌ Bad
+// Set the user name to John
+user.setName("John");
+```
+
+<!-- 
+speaker_note: |
+  Comments aren’t always helpful. Often they’re a sign the code isn’t expressive enough.
+  If you need a comment, make it about *why*, not *what*.
+-->
+
+<!-- end_slide -->
+
+Class Design Smells
+===
+
+- Too many responsibilities
+- Poor cohesion
+- Long parameter lists
+- Mixing data with behavior unnecessarily
+
+```java
+// ❌ God object
+public class ReportManager {
+    // Generates reports, sends emails, logs activity, stores files...
+}
+```
+
+<!-- 
+speaker_note: |
+  A class should do one thing well. If it has too many unrelated responsibilities, break it apart.
+  Small, focused classes are easier to test and change.
+-->
+
+<!-- end_slide -->
+
+Test Code Smells
+===
+
+- Tests that are hard to read
+- Logic inside tests (e.g., loops, conditionals)
+- Tests that depend on each other
+
+```java
+// ❌ Bad
+for (int i = 0; i < 5; i++) {
+    assertTrue(doSomething(i));
+}
+
+// ✅ Good
+assertTrue(doSomething(1));
+assertTrue(doSomething(2));
+```
+
+<!-- 
+speaker_note: |
+  Keep tests simple and specific. Avoid loops and logic.
+  Each test should make one clear assertion and stand on its own.
+-->
+
+<!-- end_slide -->
+
+Summary: Use Smells and Heuristics to Stay Clean
+===
+
+- This chapter is a toolbox:
+  - Use it to recognize warning signs
+  - Don’t memorize — review it regularly
+  - Discuss with your team
+- Cleaning code is ongoing work
+
+<!-- 
+speaker_note: |
+  There’s no perfect code, only better code.
+  These smells and heuristics give you the language and awareness to improve continuously.
+  Review them, talk about them, and let them guide your habits.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Clean code is a discipline, not a destination
+- These principles help you:
+  - Read code easily
+  - Write code confidently
+  - Refactor safely
+- The goal: leave the code better than you found it
+
+<!-- 
+speaker_note: |
+  You made it to the end of Clean Code. Now the real work begins.
+  Keep learning, keep refining, and help your team build software that’s not just functional — but clean.
+-->
+
+<!-- end_slide -->
+
+Appendix A — Concurrency II (Tooling, Testing, and Patterns)
+===
+
+<!-- 
+speaker_note: |
+  Appendix A extends the conversation from Chapter 13 on concurrency. Here, Uncle Bob dives deeper into practical patterns, tools, and best practices for managing concurrent code.
+-->
+
+<!-- end_slide -->
+
+Testing Multithreaded Code
+===
+
+- Concurrency bugs are hard to reproduce
+- Use multiple runs, stress tests, and instrumentation
+- Consider:
+  - Thread testing frameworks (e.g., JUnit with concurrency tools)
+  - Log timing and thread state
+
+<!-- 
+speaker_note: |
+  Bugs caused by threads often depend on timing and load — which makes them hard to catch.
+  Use tools and high-repeat test loops to force those timing issues to surface.
+-->
+
+<!-- end_slide -->
+
+Patterns for Concurrency
+===
+
+- **Producer-Consumer**: use queues to separate work generation and processing
+- **Read-Write Locks**: allow concurrent reads, exclusive writes
+- **Thread Pools**: manage limited threads for controlled parallelism
+
+```java
+ExecutorService pool = Executors.newFixedThreadPool(4);
+pool.submit(() -> doWork());
+```
+
+<!-- 
+speaker_note: |
+  These common concurrency patterns help balance performance with safety.
+  They encapsulate common needs like queuing, limiting, and synchronization.
+-->
+
+<!-- end_slide -->
+
+Avoiding Shared State
+===
+
+- Minimize shared mutable data
+- Prefer immutability and message-passing
+- Use `ThreadLocal` only when necessary
+
+```java
+private static final ThreadLocal<DateFormat> formatter = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd"));
+```
+
+<!-- 
+speaker_note: |
+  If threads don’t share data, they can’t interfere with each other.
+  Avoid sharing state; if you must, isolate access carefully with synchronization or thread-local storage.
+-->
+
+<!-- end_slide -->
+
+Defensive Design for Concurrency
+===
+
+- Think in terms of failure:
+  - What happens when a thread crashes?
+  - What happens when a shared resource is locked too long?
+- Design systems to be:
+  - **Resilient**
+  - **Isolated**
+  - **Recoverable**
+
+<!-- 
+speaker_note: |
+  Assume failure. Good concurrent design means your system continues to work even if one thread fails.
+  Keep components isolated so one bug doesn’t take down the whole application.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Concurrency is hard — but manageable with:
+  - Proper patterns
+  - Isolation
+  - Tooling and testing
+- Think defensively, and structure for failure
+
+<!-- 
+speaker_note: |
+  Clean concurrent design isn’t about clever tricks — it’s about safe patterns, clear ownership, and smart testing.
+  With the right discipline, even complex systems can remain clean and reliable.
+-->
+
+<!-- end_slide -->
+
+Appendix B — org.jfree.date.SerialDate (The Original Code)
+===
+
+<!-- 
+speaker_note: |
+  Appendix B contains the full, unrefactored listing of the `SerialDate` class from the JFreeChart project.
+  Uncle Bob includes it here to give you a firsthand look at what "unclean" legacy code can look like — before any cleanup.
+-->
+
+<!-- end_slide -->
+
+Purpose of Including SerialDate
+===
+
+- Show a realistic example of large, messy code
+- Provides context for Chapter 16’s refactoring case study
+- Lets readers compare before and after
+
+<!-- 
+speaker_note: |
+  Seeing the full class in its raw form gives weight to the refactoring process in Chapter 16.
+  You can look at this class and immediately see the problems: size, duplication, and mixed responsibilities.
+-->
+
+<!-- end_slide -->
+
+What Makes the Original SerialDate "Dirty"?
+===
+
+- ~2000 lines of code in one class
+- Mixes:
+  - Calendar math
+  - Parsing and formatting
+  - Constants
+  - Validation logic
+- Public constants for days/months instead of enums
+- No separation of concerns
+
+<!-- 
+speaker_note: |
+  It’s not that the code is broken — it works. But it’s fragile, hard to understand, and almost impossible to maintain.
+  That’s what we mean when we say a codebase is “dirty.”
+-->
+
+<!-- end_slide -->
+
+Lessons from SerialDate
+===
+
+- Even large, legacy classes can be cleaned
+- Don’t be intimidated by messy code
+- Start with tests, then refactor gradually
+
+<!-- 
+speaker_note: |
+  The presence of code like SerialDate is common in real projects.
+  What matters is how we deal with it. Treat legacy code as something to be rescued, not rewritten.
+-->
+
+<!-- end_slide -->
+
+Conclusion
+===
+
+- Appendix B reminds us where many projects start
+- Clean code is possible — even from the messiest beginnings
+- The key is discipline, testing, and steady improvement
+
+<!-- 
+speaker_note: |
+  This appendix shows the reality of working with legacy systems.
+  The good news: with clean code principles, you can always make things better — one refactoring at a time.
 -->
 
 <!-- end_slide -->
