@@ -94,7 +94,7 @@ The Grand Redesign in the Sky
 
 <!-- 
 speaker_note: |
-  I've seen this pattern too many times.
+  Uncle Bob saw this pattern too many times.
   The team can’t take it anymore, so they start from scratch. But they bring the same bad habits.
   Six months in, the new codebase looks just as bad.
   Rewrites don’t solve bad discipline — they repeat it.
@@ -327,37 +327,46 @@ speaker_note: |
 Functions Should Be Small
 ===
 
-- The first rule: **small**. The second rule: **smaller than that**.
-- Ideally: 1–5 lines.
-- Each function should do one thing — and do it well.
+- Functions should be **small and focused**.
+- Long functions often mix concerns and obscure intent.
+- Smaller functions are easier to test, debug, and reuse.
 
 ```java
-// ❌ Too large
-public void processUserInput(String input) {
-    if (input != null && input.length() > 0) {
-        String[] parts = input.split(",");
-        for (String part : parts) {
-            if (!part.isEmpty()) {
-                saveToDatabase(part);
-            }
-        }
+// ❌ Long function doing too much
+public void processUserRegistration(HttpServletRequest request) {
+    String name = request.getParameter("name");
+    String email = request.getParameter("email");
+    if (!email.contains("@")) {
+        throw new IllegalArgumentException("Invalid email");
     }
+    User user = new User(name, email);
+    userRepository.save(user);
+    String welcomeMessage = "Welcome, " + name + "!";
+    emailService.send(email, welcomeMessage);
+    logger.info("New user registered: " + email);
+    auditLogService.logRegistration(email);
 }
 
-// ✅ Split into small, clear steps
-public void processUserInput(String input) {
-    if (isValid(input)) {
-        for (String part : parse(input)) {
-            save(part);
-        }
-    }
+// ✅ Refactored into focused steps
+public void processUserRegistration(HttpServletRequest request) {
+    User user = extractUser(request);
+    validate(user);
+    save(user);
+    welcome(user);
+    audit(user);
 }
+
+private User extractUser(HttpServletRequest request) {...}
+private void validate(User user) {...}
+private void save(User user) {...}
+private void welcome(User user) {...}
+private void audit(User user) {...}
 ```
 
 <!-- 
 speaker_note: |
-  Small functions are easier to test, easier to read, and easier to reuse.
-  The second version shows how we can name the steps, making the logic clear — even if we don't see the details of each helper method.
+  This version shows a more realistic example of a long function that tries to do everything: input parsing, validation, persistence, notification, logging.
+  Breaking it down makes each part easier to test, reuse, and understand — and communicates intention much more clearly.
 -->
 
 <!-- end_slide -->
@@ -370,25 +379,48 @@ Do One Thing
 - "One thing" means one **responsibility**, not one line of code.
 
 ```java
-// ❌ Does multiple things
-public void saveUserData(User user) {
-    validate(user);
-    log(user);
-    repository.save(user);
+// ❌ Does too many unrelated things
+public void handleSupportTicket(Ticket ticket) {
+    if (ticket.isUrgent()) {
+        escalate(ticket);
+    }
+    sendConfirmationEmail(ticket);
+    logActivity(ticket);
+    archiveTicket(ticket);
+    notifySupervisor(ticket);
+    updateDashboardMetrics(ticket);
 }
 
-// ✅ Do one thing each
-public void saveUserData(User user) {
-    validate(user);
-    save(user);
+// ✅ Grouped by responsibility
+public void handleSupportTicket(Ticket ticket) {
+    processPriority(ticket);
+    communicate(ticket);
+    finalizeTicket(ticket);
+}
+
+private void processPriority(Ticket ticket) {
+    if (ticket.isUrgent()) {
+        escalate(ticket);
+    }
+}
+
+private void communicate(Ticket ticket) {
+    sendConfirmationEmail(ticket);
+    notifySupervisor(ticket);
+}
+
+private void finalizeTicket(Ticket ticket) {
+    logActivity(ticket);
+    archiveTicket(ticket);
+    updateDashboardMetrics(ticket);
 }
 ```
 
 <!-- 
 speaker_note: |
-  The idea of "one thing" is about conceptual integrity.
-  If your function validates, logs, and saves — it’s doing at least three things.
-  Extracting those steps improves testability and reuse.
+  This version makes the concept of "doing one thing" more obvious.
+  The original function handles escalation, communication, logging, and metrics all at once — that’s too many responsibilities.
+  Refactoring into grouped steps improves modularity, clarity, and maintainability.
 -->
 
 <!-- end_slide -->
@@ -437,6 +469,114 @@ scheduleMeeting(new Meeting("Team Sync", 30, "Zoom", true));
 speaker_note: |
   Arguments make functions harder to understand and test.
   Wrapping multiple related arguments into an object gives them meaning and reduces cognitive load.
+-->
+
+<!-- end_slide -->
+
+Avoid Boolean, Optional, or Null Parameters
+===
+
+- Boolean flags create multiple execution paths in one function
+- `Optional` and `null` often signal missing context or weak design
+- Better alternatives:
+  - Separate functions for separate behaviors
+  - Use polymorphism or overloads
+
+```java
+// ❌ Boolean flag alters behavior
+public void render(boolean isPreview) {
+    if (isPreview) {
+        renderPreview();
+    } else {
+        renderFull();
+    }
+}
+
+// ✅ Separate functions for clarity
+public void renderPreview() {...}
+public void renderFull() {...}
+```
+
+<!-- 
+speaker_note: |
+  Boolean arguments make a function do two things — and force callers to know what `true` or `false` actually means.
+  `Optional` or `null` suggest uncertainty in the input. It's cleaner to split behaviors or enforce required data early.
+-->
+
+<!-- end_slide -->
+
+
+Handling Optional and Null Cleanly
+===
+
+- Validate input at the boundaries — don’t let `null` leak into core logic
+- Use guard clauses to fail fast
+- Prefer **object composition** or **default objects** over optionality
+
+```java
+// ❌ Allowing nulls forces checks everywhere
+public void sendInvoice(User user) {
+    if (user != null && user.getEmail() != null) {
+        emailService.send(user.getEmail(), "Your invoice");
+    }
+}
+
+// ✅ Validate early, eliminate nulls
+public void sendInvoice(User user) {
+    validateUser(user);
+    emailService.send(user.getEmail(), "Your invoice");
+}
+
+private void validateUser(User user) {
+    if (user == null || user.getEmail() == null) {
+        throw new IllegalArgumentException("User or email must not be null");
+    }
+}
+```
+
+<!-- 
+speaker_note: |
+  Instead of scattering null checks across your code, validate input at the entry point.
+  This makes your downstream logic simpler and more reliable.
+-->
+
+<!-- end_slide -->
+
+Use Polymorphism Instead of Conditionals
+===
+
+- When logic branches on type or mode, consider polymorphism
+- Replace flags or enums with behavior-specific subclasses or strategies
+
+```java
+// ❌ Branching on type
+public double getDiscount(Customer customer) {
+    switch (customer.getType()) {
+        case REGULAR: return 0.0;
+        case PREMIUM: return 0.1;
+        case VIP: return 0.2;
+    }
+    return 0.0;
+}
+
+// ✅ Use polymorphism
+public interface Customer {
+    double getDiscount();
+}
+
+public class RegularCustomer implements Customer {
+    public double getDiscount() { return 0.0; }
+}
+
+public class VipCustomer implements Customer {
+    public double getDiscount() { return 0.2; }
+}
+```
+
+<!-- 
+speaker_note: |
+  When you find yourself writing conditionals based on a type or mode, ask: could this be solved with polymorphism?
+  It separates behaviors cleanly and keeps the core logic free of branching clutter.
 -->
 
 <!-- end_slide -->
